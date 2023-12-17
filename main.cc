@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <csignal>
 #include <sstream>
+#include <thread>
+#include <vector>
 #include "util.h"
 #include "gemini.h"
 
@@ -47,6 +49,31 @@ std::string receive_request(SSL *ssl) {
     return req;
 }
 
+void handle_connection(SSL_CTX *ctx, int c, struct sockaddr_in addr) {
+    std::cout << "Connection from " << inet_ntoa(addr.sin_addr) << "!" << std::endl;
+
+    SSL *ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, c);
+
+    if (SSL_accept(ssl) <= 0) {
+        ERR_print_errors_fp(stderr);
+    } else {
+        auto url = Gemini::parse_url(receive_request(ssl));
+        auto response = Gemini::make_response(url);
+
+        std::stringstream resp_stream;
+        resp_stream << response.status << " " << response.meta << "\r\n";
+        resp_stream << response.body;
+        auto resp_data = resp_stream.str();
+
+        SSL_write(ssl, resp_data.c_str(), (int) resp_data.length());
+    }
+
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    close(c);
+}
+
 int main() {
     auto *ctx = init_ssl();
 
@@ -74,6 +101,7 @@ int main() {
         exit(1);
     }
 
+    std::vector<std::thread> threads;
     std::cout << "Listening..." << std::endl;
     while (true) {
         struct sockaddr_in client_addr{};
@@ -84,27 +112,8 @@ int main() {
             perror("accept");
             exit(1);
         }
-        std::cout << "Connection from " << inet_ntoa(client_addr.sin_addr) << "!" << std::endl;
 
-        SSL *ssl = SSL_new(ctx);
-        SSL_set_fd(ssl, client);
-
-        if (SSL_accept(ssl) <= 0) {
-            ERR_print_errors_fp(stderr);
-        } else {
-            auto url = Gemini::parse_url(receive_request(ssl));
-            auto response = Gemini::make_response(url);
-
-            std::stringstream resp_stream;
-            resp_stream << response.status << " " << response.meta << "\r\n";
-            resp_stream << response.body;
-            auto resp_data = resp_stream.str();
-
-            SSL_write(ssl, resp_data.c_str(), (int) resp_data.length());
-        }
-
-        SSL_shutdown(ssl);
-        SSL_free(ssl);
-        close(client);
+        std::thread t(handle_connection, ctx, client, client_addr);
+        threads.push_back(std::move(t));
     }
 }

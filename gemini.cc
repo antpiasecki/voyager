@@ -27,6 +27,13 @@ namespace Gemini {
             return Response{59, "URL length cannot exceed 1024 characters", ""};
         }
 
+        if (url.hostname.contains(":")) {
+            auto port = url.hostname.substr(url.hostname.find(':') + 1);
+            if (port != "1965") {
+                return Response{53, "Proxy request denied", ""};
+            }
+        }
+
         if (url.schema.empty()) {
             return Response{59, "URL schema cannot be empty", ""};
         } else if (url.schema != "gemini") {
