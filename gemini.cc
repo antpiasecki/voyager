@@ -1,4 +1,8 @@
+#include <regex>
+#include <filesystem>
+#include <fstream>
 #include "gemini.h"
+#include "util.h"
 
 namespace Gemini {
     Url parse_url(std::string data) {
@@ -40,8 +44,28 @@ namespace Gemini {
             return Response{53, "Proxy request denied", ""};
         }
 
-        if (url.path == "/") {
-            return Response{20, "text/gemini", "# Hello Gemini!\r\n"};
+        auto clean_path = std::regex_replace(url.path, std::regex("\\.\\."), "");
+        if (clean_path == "/")
+            clean_path = "/index.gmi";
+
+        // TODO: check if it's actually secure
+        clean_path = strip_slashes(clean_path);
+
+        auto absolute_path = std::filesystem::current_path() / "data" / "public" / clean_path;
+
+        if (std::filesystem::exists(absolute_path)) {
+            if (std::filesystem::is_regular_file(absolute_path)) {
+                std::ifstream file(absolute_path);
+                std::stringstream buffer;
+                buffer << file.rdbuf();
+                file.close();
+
+                // TODO: meta
+                return Response{20, "text/gemini", buffer.str()};
+            } else {
+                // TODO
+                return Response{51, "Not found", ""};
+            }
         } else {
             return Response{51, "Not found", ""};
         }

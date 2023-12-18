@@ -37,7 +37,7 @@ SSL_CTX *init_ssl() {
 std::string receive_request(SSL *ssl) {
     std::string req;
 
-    while (!endswith(req, "\r\n")) {
+    while (!req.ends_with("\r\n")) {
         char buffer[CHUNK_SIZE] = {0};
         int n = SSL_read(ssl, buffer, CHUNK_SIZE);
         if (n == -1) {

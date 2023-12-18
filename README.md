@@ -28,4 +28,4 @@ docker run --name=voyager -d --restart=always -v ./data:/voyager/data -p 1965:19
 
 ## TODO
 - [x] Concurrency
-- [ ] Static file hosting
+- [x] Static file hosting
