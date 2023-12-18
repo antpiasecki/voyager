@@ -4,13 +4,26 @@
 
 ## Setup
 
-```
+```bash
+# Build
 mkdir build
 cd build
 cmake ..
 make
-openssl req -nodes -x509 -new -keyout key.pem -out cert.pem -days 365
+
+# Generate certificate
+mkdir data
+openssl req -nodes -x509 -new -keyout data/key.pem -out data/cert.pem -days 365
+
 ./voyager
+```
+
+### Docker
+```bash
+docker build -t voyager .
+mkdir data
+openssl req -nodes -x509 -new -keyout data/key.pem -out data/cert.pem -days 365
+docker run --name=voyager -d --restart=always -v ./data:/voyager/data -p 1965:1965 voyager
 ```
 
 ## TODO
